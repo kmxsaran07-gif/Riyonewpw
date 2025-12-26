@@ -160,6 +160,8 @@ async def restart_handler(_, m):
 
 @bot.on_message(filters.command(["kmx12"]) )
 async def txt_handler(bot: Client, m: Message):
+    user = await bot.get_me()
+    user_id = user.id
     editable = await m.reply_text(f"**🔹Hi I am Poweful TXT Downloader📥 Bot.**\n🔹**Send me the TXT file and wait.**")
     input: Message = await bot.listen(editable.chat.id)
     x = await input.download()
