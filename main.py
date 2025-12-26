@@ -272,9 +272,8 @@ async def txt_handler(bot: Client, m: Message):
                         text = await resp.text()
                         url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
 
-            elif 'videos.classplusapp' in url or "tencdn.classplusapp" in url or "webvideos.classplusapp.com" in url or "media-cdn-alisg.classplusapp.com" in url or "videos.classplusapp" in url or "videos.classplusapp.com" in url or "media-cdn-a.classplusapp" in url or "media-cdn.classplusapp" in url:
-    # नया कोड
-    api_url = f"https://shefu-api-final.vercel.app/shefu?url={url}@ITSGOLU_FORCE&user_id={user_id}"
+           elif 'videos.classplusapp' in url or "tencdn.classplusapp" in url or "webvideos.classplusapp.com" in url or "media-cdn-alisg.classplusapp.com" in url or "videos.classplusapp" in url or "videos.classplusapp.com" in url or "media-cdn-a.classplusapp" in url or "media-cdn.classplusapp" in url:
+               api_url = f"https://shefu-api-final.vercel.app/shefu?url={url}@ITSGOLU_FORCE&user_id={user_id}"
     
     try:
         response = requests.get(api_url, headers={
@@ -282,21 +281,19 @@ async def txt_handler(bot: Client, m: Message):
         })
         
         if response.status_code == 200:
-            result = response.json()
+            data = response.json()
             
-            # DRM content check
-            if isinstance(result, dict) and "MPD" in result:
-                url = result["MPD"]
-                print("Got DRM MPD URL")
-            # Non-DRM content
-            elif isinstance(result, dict) and "url" in result:
-                url = result["url"]
-                print("Got direct URL")
-            elif isinstance(result, str):
-                url = result
-                print("Got string URL")
-            else:
-                print(f"Unknown API response: {result}")
+            if isinstance(data, dict):
+                if "MPD" in data:
+                    url = data["MPD"]
+                elif "url" in data:
+                    url = data["url"]
+                else:
+                    for key in data:
+                        url = data[key]
+                        break
+            elif isinstance(data, str):
+                url = data
                 
     except Exception as e:
         print(f"Classplus API error: {e}")
