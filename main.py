@@ -268,75 +268,58 @@ async def txt_handler(bot: Client, m: Message):
                 cmd = f'yt-dlp -o "{name}.%(ext)s" -f "bestvideo[height<={raw_text2}]+bestaudio" --hls-prefer-ffmpeg --no-keep-video --remux-video mkv --no-warning "{url}"'
                 
 
-            # Classplus URLs को ठीक करें
-elif 'videos.classplusapp' in url or "tencdn.classplusapp" in url or "webvideos.classplusapp.com" in url or "media-cdn-alisg.classplusapp.com" in url or "videos.classplusapp" in url or "videos.classplusapp.com" in url or "media-cdn-a.classplusapp" in url or "media-cdn.classplusapp" in url:
+            # --- Classplus/Testbook handler using ITSGOLU API (पुराने बॉट जैसा) ---
+elif any(x in url for x in ["https://cpvod.testbook.com/", "classplusapp.com/drm/", "media-cdn.classplusapp.com", "media-cdn-alisg.classplusapp.com", "media-cdn-a.classplusapp.com", "tencdn.classplusapp", "videos.classplusapp", "webvideos.classplusapp.com"]):
+    api_url_call = f"https://shefu-api-final.vercel.app/shefu?url={url}@ITSGOLU_FORCE&user_id={user_id}"
+    
     try:
-        # सही API URL format use करें
-        api_url = f"https://shefu-api-final.vercel.app/shefu?url={url}@ITSGOLU_FORCE&user_id={user_id}"
-        print(f"Calling Classplus API: {api_url}")
+        resp = requests.get(api_url_call, timeout=30)
+        data = resp.json()
         
-        response = requests.get(api_url, headers={
-            'x-access-token': 'eyJjb3Vyc2VJZCI6IjQ1NjY4NyIsInR1dG9ySWQiOm51bGwsIm9yZ0lkIjo0ODA2MTksImNhdGVnb3J5SWQiOm51bGx9r'
-        })
+        # 🔑 CASE 1: DRM Content (KEYS + MPD)
+        if isinstance(data, dict) and "KEYS" in data and "MPD" in data:
+            mpd = data.get("MPD")
+            keys = data.get("KEYS", [])
+            url = mpd  # MPD URL use करें
+            keys_string = " ".join([f"--key {k}" for k in keys])
+            print(f"✅ DRM Content - Got {len(keys)} keys")
+            
+            # DRM के लिए special yt-dlp command
+            cmd = f'yt-dlp -o "{name}.mp4" --allow-unplayable-formats "{url}" {keys_string}'
         
-        print(f"API Response Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"API Response JSON: {data}")
+        # 🔗 CASE 2: Non-DRM Content (direct URL)
+        elif isinstance(data, dict) and "url" in data:
+            url = data.get("url")
+            print("✅ Non-DRM Content - Got direct URL")
             
-            if 'url' in data:
-                url = data['url']
-                print(f"✓ Classplus URL converted successfully: {url[:100]}...")
-            else:
-                print(f"✗ 'url' key not found in API response. Available keys: {list(data.keys())}")
-                # Alternative keys check करें
-                for key in ['downloadUrl', 'video_url', 'direct_url', 'link', 'video']:
-                    if key in data:
-                        url = data[key]
-                        print(f"✓ Using alternative key '{key}': {url[:100]}...")
-                        break
-        else:
-            print(f"✗ API failed with status: {response.status_code}")
-            print(f"Response: {response.text}")
-            
-    except Exception as e:
-        print(f"✗ Classplus processing error: {e}")
-        import traceback
-        traceback.print_exc()
-            
-            #elif '/master.mpd' in url:
-             #id =  url.split("/")[-2]
-             #url = f"https://player.muftukmall.site/?id={id}"
-            #elif '/master.mpd' in url:
-             #id =  url.split("/")[-2]
-             #url = f"https://anonymouspwplayer-25261acd1521.herokuapp.com/pw?url={url}&token={raw_text4}"
-            #url = f"https://anonymouspwplayer-25261acd1521.herokuapp.com/pw?url={url}&token={raw_text4}"
-            elif"d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
-             url = f"https://anonymouspwplayer-554b25895c1a.herokuapp.com/pw?url={url}&token={raw_text4}"
-                     
-                                                         
-            name1 = links[i][0].replace("\t", "").replace(":", "").replace("/", "").replace("+", "").replace("#", "").replace("|", "").replace("@", "").replace("*", "").replace(".", "").replace("https", "").replace("http", "").strip()
-            name = f'{str(count).zfill(3)}) {name1[:60]} {my_name}'
-                      
-            
-            if "edge.api.brightcove.com" in url:
-                bcov = 'bcov_auth=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJpYXQiOjE3MjQyMzg3OTEsImNvbiI6eyJpc0FkbWluIjpmYWxzZSwiYXVzZXIiOiJVMFZ6TkdGU2NuQlZjR3h5TkZwV09FYzBURGxOZHowOSIsImlkIjoiZEUxbmNuZFBNblJqVEROVmFWTlFWbXhRTkhoS2R6MDkiLCJmaXJzdF9uYW1lIjoiYVcxV05ITjVSemR6Vm10ak1WUlBSRkF5ZVNzM1VUMDkiLCJlbWFpbCI6Ik5Ga3hNVWhxUXpRNFJ6VlhiR0ppWTJoUk0wMVdNR0pVTlU5clJXSkRWbXRMTTBSU2FHRnhURTFTUlQwPSIsInBob25lIjoiVUhVMFZrOWFTbmQ1ZVcwd1pqUTViRzVSYVc5aGR6MDkiLCJhdmF0YXIiOiJLM1ZzY1M4elMwcDBRbmxrYms4M1JEbHZla05pVVQwOSIsInJlZmVycmFsX2NvZGUiOiJOalZFYzBkM1IyNTBSM3B3VUZWbVRtbHFRVXAwVVQwOSIsImRldmljZV90eXBlIjoiYW5kcm9pZCIsImRldmljZV92ZXJzaW9uIjoiUShBbmRyb2lkIDEwLjApIiwiZGV2aWNlX21vZGVsIjoiU2Ftc3VuZyBTTS1TOTE4QiIsInJlbW90ZV9hZGRyIjoiNTQuMjI2LjI1NS4xNjMsIDU0LjIyNi4yNTUuMTYzIn19.snDdd-PbaoC42OUhn5SJaEGxq0VzfdzO49WTmYgTx8ra_Lz66GySZykpd2SxIZCnrKR6-R10F5sUSrKATv1CDk9ruj_ltCjEkcRq8mAqAytDcEBp72-W0Z7DtGi8LdnY7Vd9Kpaf499P-y3-godolS_7ixClcYOnWxe2nSVD5C9c5HkyisrHTvf6NFAuQC_FD3TzByldbPVKK0ag1UnHRavX8MtttjshnRhv5gJs5DQWj4Ir_dkMcJ4JaVZO3z8j0OxVLjnmuaRBujT-1pavsr1CCzjTbAcBvdjUfvzEhObWfA1-Vl5Y4bUgRHhl1U-0hne4-5fF0aouyu71Y6W0eg'
-                url = url.split("bcov_auth")[0]+bcov
-                
+            # Normal yt-dlp command
             if "youtu" in url:
                 ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
             else:
                 ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
             
-            if "jw-prod" in url:
-                cmd = f'yt-dlp -o "{name}.mp4" "{url}"'
-
-            elif "youtube.com" in url or "youtu.be" in url:
-                cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
-
+            cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+        
+        # ❌ CASE 3: Unexpected response
+        else:
+            print(f"⚠️ Unexpected API response: {data}")
+            # Original URL use करें
+            if "youtu" in url:
+                ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
             else:
-                cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+                ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
+            
+            cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+            
+    except Exception as e:
+        print(f"❌ API Error: {e}")
+        # Fallback to original method
+        if "youtu" in url:
+            ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
+        else:
+            ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
+        
+        cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 
             try:  
                 
